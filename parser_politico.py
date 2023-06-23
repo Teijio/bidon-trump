@@ -1,10 +1,13 @@
 import time
+import aiohttp
+import asyncio
 
 import requests
 from tqdm import tqdm
 from bs4 import BeautifulSoup
 
 from mongo_db import insert_data
+from mongo_db_async import insert_data_async
 
 HEADERS = {
     "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,*/*;q=0.8",
@@ -18,18 +21,18 @@ COLLECTIONS = {
     "bidon_politico": "bidon_politico",
     "trump_politico": "trump_politico",
 }
-SEARCH_TERM = "donald-trump"
-# SEARCH_TERM = "joe-biden"
+
+SEARCH_TERM = {"bidon": "joe-biden", "trump": "donald-trump"}
 
 TRUMP_QUERY = ("article", {"class": "story-frag format-m"})
 BIDEN_QUERY = ("p", {"class": "story-full"})
 
-START_PAGE = 1
-TARGET_PAGE = 100
+START_PAGE = 99
+TARGET_PAGE = 200
 
 LINK_FILTER = "https://www.politico.com/news/"
 
-URL = f"https://www.politico.com/news/{SEARCH_TERM}/"
+URL = f"https://www.politico.com/news/{SEARCH_TERM.get('trump')}/"
 
 CLASS_TAGS = [
     "story-text__paragraph",
@@ -72,12 +75,31 @@ def parse(url, headers):
     return (title, pub_date, description)
 
 
-def main():
+async def parse_async(url, headers):
+    async with aiohttp.ClientSession() as session:
+        async with session.get(url, headers=headers) as response:
+            response_text = await response.text()
+
+            soup = BeautifulSoup(response_text, "lxml")
+            soup_title = soup.find("h2", {"class": "headline"})
+            soup_pub_date = soup.find("p", {"class": "story-meta__timestamp"})
+            soup_description = soup.find_all(
+                ["p", "h3"], {"class": CLASS_TAGS}
+            )
+            description = "\n".join(
+                post.text.strip() for post in soup_description
+            )
+            title = soup_title.text
+            pub_date = soup_pub_date.text
+
+    return title, pub_date, description
+
+
+async def main():
     progress_bar = tqdm(total=TARGET_PAGE - START_PAGE + 1, unit="page")
     for page in range(START_PAGE, TARGET_PAGE):
         url = f"{URL}{page}"
         links = get_links_per_page(url, HEADERS, TRUMP_QUERY)
-        time.sleep(1)
         save_to_file(links)
         progress_bar.update(1)
         progress_bar.set_description(f"Processing page {page}")
@@ -89,7 +111,7 @@ def main():
         lines_progress = tqdm(lines, total=total_lines, unit="line")
         for url in lines_progress:
             title, pub_date, description = parse(url, HEADERS)
-            insert_data(
+            await insert_data_async(
                 title, pub_date, description, COLLECTIONS["trump_politico"]
             )
             lines_progress.set_description(
@@ -100,4 +122,36 @@ def main():
 
 
 if __name__ == "__main__":
-    main()
+    loop = asyncio.get_event_loop()
+    loop.run_until_complete(main())
+    loop.close()
+
+# def main():
+#     progress_bar = tqdm(total=TARGET_PAGE - START_PAGE + 1, unit="page")
+#     for page in range(START_PAGE, TARGET_PAGE):
+#         url = f"{URL}{page}"
+#         links = get_links_per_page(url, HEADERS, TRUMP_QUERY)
+#         time.sleep(1)
+#         save_to_file(links)
+#         progress_bar.update(1)
+#         progress_bar.set_description(f"Processing page {page}")
+#     progress_bar.close()
+
+#     with open("data/links.txt", "r") as file:
+#         lines = file.readlines()
+#         total_lines = len(lines)
+#         lines_progress = tqdm(lines, total=total_lines, unit="line")
+#         for url in lines_progress:
+#             title, pub_date, description = parse_async(url, HEADERS)
+#             insert_data(
+#                 title, pub_date, description, COLLECTIONS["trump_politico"]
+#             )
+#             lines_progress.set_description(
+#                 f"In process... {lines_progress.n}/{total_lines} lines"
+#             )
+
+#         lines_progress.close()
+
+
+# if __name__ == "__main__":
+#     main()
