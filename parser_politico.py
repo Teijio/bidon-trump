@@ -1,13 +1,9 @@
-import time
 import aiohttp
 import asyncio
 
 import requests
 from tqdm import tqdm
 from bs4 import BeautifulSoup
-
-from mongo_db import insert_data
-from mongo_db_async import insert_data_async
 
 HEADERS = {
     "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,*/*;q=0.8",
@@ -27,12 +23,12 @@ SEARCH_TERM = {"bidon": "joe-biden", "trump": "donald-trump"}
 TRUMP_QUERY = ("article", {"class": "story-frag format-m"})
 BIDEN_QUERY = ("p", {"class": "story-full"})
 
-START_PAGE = 99
-TARGET_PAGE = 200
+START_PAGE = 1
+TARGET_PAGE = 300
 
 LINK_FILTER = "https://www.politico.com/news/"
 
-URL = f"https://www.politico.com/news/{SEARCH_TERM.get('trump')}/"
+URL = f"https://www.politico.com/news/{SEARCH_TERM.get('bidon')}/"
 
 CLASS_TAGS = [
     "story-text__paragraph",
@@ -99,7 +95,7 @@ async def main():
     progress_bar = tqdm(total=TARGET_PAGE - START_PAGE + 1, unit="page")
     for page in range(START_PAGE, TARGET_PAGE):
         url = f"{URL}{page}"
-        links = get_links_per_page(url, HEADERS, TRUMP_QUERY)
+        links = get_links_per_page(url, HEADERS, BIDEN_QUERY)
         save_to_file(links)
         progress_bar.update(1)
         progress_bar.set_description(f"Processing page {page}")
@@ -112,7 +108,7 @@ async def main():
         for url in lines_progress:
             title, pub_date, description = parse(url, HEADERS)
             await insert_data_async(
-                title, pub_date, description, COLLECTIONS["trump_politico"]
+                title, pub_date, description, COLLECTIONS["bidon_politico"]
             )
             lines_progress.set_description(
                 f"In process... {lines_progress.n}/{total_lines} lines"
@@ -126,32 +122,3 @@ if __name__ == "__main__":
     loop.run_until_complete(main())
     loop.close()
 
-# def main():
-#     progress_bar = tqdm(total=TARGET_PAGE - START_PAGE + 1, unit="page")
-#     for page in range(START_PAGE, TARGET_PAGE):
-#         url = f"{URL}{page}"
-#         links = get_links_per_page(url, HEADERS, TRUMP_QUERY)
-#         time.sleep(1)
-#         save_to_file(links)
-#         progress_bar.update(1)
-#         progress_bar.set_description(f"Processing page {page}")
-#     progress_bar.close()
-
-#     with open("data/links.txt", "r") as file:
-#         lines = file.readlines()
-#         total_lines = len(lines)
-#         lines_progress = tqdm(lines, total=total_lines, unit="line")
-#         for url in lines_progress:
-#             title, pub_date, description = parse_async(url, HEADERS)
-#             insert_data(
-#                 title, pub_date, description, COLLECTIONS["trump_politico"]
-#             )
-#             lines_progress.set_description(
-#                 f"In process... {lines_progress.n}/{total_lines} lines"
-#             )
-
-#         lines_progress.close()
-
-
-# if __name__ == "__main__":
-#     main()

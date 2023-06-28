@@ -4,23 +4,28 @@ from pprint import pprint
 
 url = "https://search.api.cnn.com/content"
 
-querystring = {
-    "q": "trump",
-    "size": "2",
-    "from": "0",
-    "page": "1",
-    "sort": "newest",
-}
 
-payload = ""
-response = requests.request("GET", url, data=payload, params=querystring)
 
-with open("test123.txt", "w") as file:
-    file.write(response.text)
+def parse(q):
+    payload = ""
+    response = requests.request("GET", url, data=payload, params=q)
 
-txt = response.text
-js = json.loads(txt)
-pprint(js["result"])
+    with open("test123.txt", "w") as file:
+        file.write(response.text)
+
+    txt = response.text
+    js = json.loads(txt)
+    pprint(js["result"])
+page = 0
+for i in range(10, 1500, 10):
+    querystring = {
+        "q": "trump",
+        "size": "10",
+        "from": i,
+        "page": page + 1,
+        "sort": "newest",
+    }
+    print(i)
 
 # with open("test123.txt") as f:
 #     json_data = json.load(f)
