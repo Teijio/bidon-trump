@@ -107,7 +107,7 @@ async def main():
         lines_progress = tqdm(lines, total=total_lines, unit="line")
         for url in lines_progress:
             title, pub_date, description = parse(url, HEADERS)
-            await insert_data_async(
+            insert_data_async(
                 title, pub_date, description, COLLECTIONS["bidon_politico"]
             )
             lines_progress.set_description(

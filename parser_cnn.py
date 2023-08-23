@@ -17,6 +17,7 @@ def parse(q):
     js = json.loads(txt)
     pprint(js["result"])
 page = 0
+
 for i in range(10, 1500, 10):
     querystring = {
         "q": "trump",

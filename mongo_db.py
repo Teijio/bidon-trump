@@ -26,14 +26,14 @@ def read_data(collection):
     db = client.testdata
     call = db[collection]
     documents = call.find({})
-    data = {}  # Создаем пустой словарь для данных
+    data = {}
 
     for document in documents:
         pub = document["pub_date"]
         print('yo')
         description = document["description"]
         pub = pub.strip()
-        data[pub] = description  # Добавляем пару ключ-значение в словарь
+        data[pub] = description 
 
     client.close()
 
